@@ -125,11 +125,11 @@ class HeleniumLogger {
                 msgout = chalk.blue(msgout);
                 break;
             case 'info':
-                pre = pre + ' ' + chalk.green('info:') + ' ';
-                msgout = chalk.green(msgout);
+                pre = pre + ' ' + ('info:') + ' ';
+                msgout = msgout;
                 break;
             case 'note':
-                pre = pre + ' ' + chalk.magenta('notice:') + ' ';
+                pre = pre + ' ' + chalk.green('notice:') + ' ';
                 msgout = chalk.magentaBright(msgout);
                 break;
             case 'warn':
@@ -147,8 +147,9 @@ class HeleniumLogger {
                 this.levels[level] <= this.levels[global.consoleLevel]) {
             console.log( chalk.grey(getFormattedDate()) + ' '
                                     + pre + ' ' + msgout );
-            this.outputSilent = false;
+            
         }
+        this.outputSilent = false;
 
         if (this.hasOwnProperty('winslog')) this.winslog.log(level, raw);
     }

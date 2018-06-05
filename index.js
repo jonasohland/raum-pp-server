@@ -1,7 +1,17 @@
 const Logger = require('./logger');
+const Detect = require('./detect');
+
+const listen_ip = process.argv[2];
 
 global.consoleLevel = 'silly';
-const log = new Logger();
+const log = new Logger({
+    logFilename: 'dings.log',
+});
 
+log.info('hello');
 
-log.note('Hello! ');
+const dt = new Detect({ip:listen_ip});
+
+dt.on('event', () => {
+    log.info('event happened');
+});
