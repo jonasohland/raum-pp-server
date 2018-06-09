@@ -1,0 +1,33 @@
+{
+    // Verwendet IntelliSense zum Ermitteln möglicher Attribute.
+    // Zeigen Sie auf vorhandene Attribute, um die zugehörigen Beschreibungen anzuzeigen.
+    // Weitere Informationen finden Sie unter https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "launch local",
+            "program": "${workspaceFolder}/index.js",
+            "args":[
+                "127.0.0.1"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "launch op5",
+            "program": "${workspaceFolder}/index.js",
+            "args":[
+                "192.168.43.255"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "launch ..",
+            "program": "${workspaceFolder}/index.js",
+        }
+    ]
+}
