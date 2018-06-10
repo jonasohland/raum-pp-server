@@ -1,5 +1,8 @@
 const Logger = require('./logger');
 const Detect = require('./detect');
+const Max = require('./maxComm');
+const EventBridge = require('./event-bridge');
+const EventEmitter = require('events').EventEmitter;
 
 const listen_ip = process.argv[2];
 
@@ -14,6 +17,9 @@ const dt = new Detect({
     ip:listen_ip
 });
 
-dt.on('event', () => {
-    log.info('event happened');
-});
+const max = new Max();
+
+const bridge = new EventBridge(dt, max);
+
+
+

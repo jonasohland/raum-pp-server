@@ -1,38 +1,33 @@
 /*
 *   Raum++ Auto detection Script
 *   (c) Jonas Ohland
+*
+*   listens on 10001, sends on 10003
 */
 
 
-dgram = require('dgram');
+const dgram = require('dgram');
 const Netmask = require('netmask').Netmask;
-const internalIP = require('internal-ip');
+const internalIPFinder = require('internal-ip');
 const chalk = require('chalk');
-Logger = require('./logger'); 
+const Logger = require('./logger'); 
 const EventEmitter = require('events').EventEmitter;
 const devLog = new Logger();
 
-
-let devices = {};
 
 class Detect extends EventEmitter {
     constructor(opts){
         super();
 
-        this.internalIPObject = internalIP.v4.sync();
+        this.devices = {}
+        this.internalIp = internalIPFinder.v4.sync();
 
-        this.cidr = this.internalIPObject.concat('/24');
+        this.cidr = this.internalIp.concat('/24');
         this.ipBlock = new Netmask(this.cidr);
         
         this.broadcastIP = this.ipBlock.broadcast;
 
         this.udp = dgram.createSocket('udp4');
-        this.maxComm = dgram.createSocket('udp4');
-
-        this.maxComm.on('error', (err) => {
-            devLog.error(err);
-        });
-
 
         //message handler
         this.udp.on('message', (message, rinfo) =>{
@@ -45,6 +40,7 @@ class Detect extends EventEmitter {
 
             
             var str = String.fromCharCode(...numbers);
+
             devLog.info(`received Message: \'${str}\'`);
             devLog.info('from ip: ' + rinfo.address);
             devLog.info('from port: ' + rinfo.port);
@@ -54,41 +50,41 @@ class Detect extends EventEmitter {
                 let deviceName = str.slice(9);
 
                 //device exists
-                if(devices.hasOwnProperty(rinfo.address)){
+                if(this.devices.hasOwnProperty(rinfo.address)){
                     //is online
-                    if(devices[rinfo.address].status === 'online'){
+                    if(this.devices[rinfo.address].status === 'online'){
                         //changed name
-                        if(deviceName !== devices[rinfo.address].name){
-                            devLog.warn(`${deviceName} changed Name from ${devices[rinfo.address].name}`);
-                            devices[rinfo.address].name = deviceName;
+                        if(deviceName !== this.devices[rinfo.address].name){
+                            devLog.warn(`${deviceName} changed Name from ${this.devices[rinfo.address].name}`);
+                            this.devices[rinfo.address].name = deviceName;
+                            this.emit('namechanged', this.devices[rinfo.address]);
                         }
                         //refresh tmt
-                        devices[rinfo.address].tmt.refresh();
+                        this.devices[rinfo.address].tmt.refresh();
 
                     //timed out before
-                    } else if (devices[rinfo.address].status === 'tmt') {
+                    } else if (this.devices[rinfo.address].status === 'tmt') {
                         //changed name
-                        
-
-                        devLog.note(`${deviceName} has reconnected`)
-                        if(deviceName !== devices[rinfo.address].name){
-                            devLog.warn(`${deviceName} changed Name from ${devices[rinfo.address].name}`);
-                            devices[rinfo.address].name = deviceName;
+                        if(deviceName !== this.devices[rinfo.address].name){
+                            devLog.warn(`${deviceName} changed Name from ${this.devices[rinfo.address].name}`);
+                            this.devices[rinfo.address].name = deviceName;
+                            this.emit('namechanged', this.devices[rinfo.address]);
                         }
-
-                        devices[rinfo.address].status = 'online';
-                        devices[rinfo.address].tmt.refresh();
+                        //refresh tmt and status
+                        this.devices[rinfo.address].status = 'online';
+                        this.devices[rinfo.address].tmt.refresh();
+                        devLog.note(`${deviceName} has reconnected`);
+                        this.emit('reconnected', this.devices[rinfo.address]);
                     }  
                
                 } else {
-                    devices[rinfo.address] = new RaumPPdevice(rinfo.address, deviceName);
-                    devices[rinfo.address].on('tmt', (args) => {
+                    this.devices[rinfo.address] = new RaumPPdevice(rinfo.address, deviceName);
+                    this.devices[rinfo.address].on('tmt', (args) => {
                         let mess = Buffer.from(`timeout ${args.name} ${args.ip}`)
-                        this.maxComm.send(mess, 10003, '127.0.0.1', () => {
-                            devLog.info('Sent Message to Max');
-                        });
+                        this.emit('tmt', this.devices[rinfo.address]);
                     });
                     devLog.note(`new Device ${deviceName}, ip: ${rinfo.address}, connected`);
+                    this.emit('newDev', this.devices[rinfo.address]);
                 }
 
             }
@@ -118,20 +114,14 @@ class Detect extends EventEmitter {
             }
             devLog.error(e);
         });
-        
-        
-        
-        
-        
-        
+
+        this.maxComm = new EventEmitter();
 
     }
-    maxNewDevice(name, ip){
-        const mess = Buffer.from(`newDevice ${name} ${ip}`);
-        this.maxComm.send(mess, 54434, 'localhost', () => {
-        });
+    emitEvent(event, args){
+        this.maxComm.emit(event, args);
     }
-    
+
 }
 
 function isIP(ipaddress) {  

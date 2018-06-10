@@ -106,7 +106,13 @@ class HeleniumLogger {
         } else if (typeof message === 'number') {
             msgout = message;
         } else {
-            msgout = '\n' + JSON.stringify(message, null, '\t');
+            try {
+
+                msgout = '\n' + JSON.stringify(message, null, '\t');
+            }
+            catch(err){
+                msgout = chalk.red('COULD NOT PRINT');
+            }
         }
         let raw = msgout;
         let pre = '';
@@ -230,5 +236,22 @@ function getFormattedDate() {
     + min + ':' + sec;
     return str;
 }
+
+function censor(censor) {
+    var i = 0;
+  
+    return function(key, value) {
+        if(i !== 0 && typeof(censor) === 'object' && typeof(value) == 'object' && censor == value) 
+            return '[Circular]'; 
+  
+        if(i >= 29) // seems to be a harded maximum of 30 serialized objects?
+            return '[Unknown]';
+  
+        ++i; // so we know we aren't using the original object anymore
+  
+            return value;  
+    }
+}
+
 
 module.exports = HeleniumLogger;
