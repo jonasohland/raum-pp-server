@@ -23,14 +23,27 @@ class Detect extends EventEmitter {
         this.internalIp = internalIPFinder.v4.sync();
 
         this.cidr = this.internalIp.concat('/24');
-        this.ipBlock = new Netmask(this.cidr);
+        this.ipblock = new Netmask(this.cidr);
         
-        this.broadcastIP = this.ipBlock.broadcast;
+        this.broadcastIP = this.ipblock.broadcast;
 
         this.udp = dgram.createSocket('udp4');
+        this.answer = dgram.createSocket('udp4');
+
+        this.localudp = dgram.createSocket('udp4');
+
+        this.messbridge = new EventEmitter();
+
+        this.udp.on('message', (mess, address) => {
+            this.messbridge.emit('message', mess, address);
+        });
+        this.localudp.on('message', (mess, address) => {
+            this.messbridge.emit('message', mess, address);
+        })
+        
 
         //message handler
-        this.udp.on('message', (message, rinfo) =>{
+        this.messbridge.on('message', (message, rinfo) =>{
 
 
             let numbers = [];
@@ -86,6 +99,11 @@ class Detect extends EventEmitter {
                     devLog.note(`new Device ${deviceName}, ip: ${rinfo.address}, connected`);
                     this.emit('newDev', this.devices[rinfo.address]);
                 }
+                this.answer.send(Buffer.from('server'), 10011, rinfo.address, (err, bytes) => {
+                    if(err) return log.error(err);
+                    log.silly(`answered ${bytes} bytes`);
+                });
+                //answer 
 
             }
 
@@ -97,16 +115,24 @@ class Detect extends EventEmitter {
             devLog.note(`server listening ${address.address}:${address.port}`);
         });
 
-        if(opts != undefined){
-            if(opts.hasOwnProperty('ip')){
-                if(isIP(opts.ip)){
-                    devLog.note(`provided ${opts.ip} as IP`);
-                } else {devLog.warn(`No IP provided, using ${this.broadcastIP}`); opts.ip = this.broadcastIP;} 
-            } else {devLog.warn(`No IP provided, using ${this.broadcastIP}`); opts.ip = this.broadcastIP;}
-        } else {devLog.warn(`No IP provided, using ${this.broadcastIP}`); opts.ip = this.broadcastIP;}
-
-        this.udp.bind(10001, opts.ip, () =>{
+        this.localudp.on('listening', () => {
+            const address = this.localudp.address();
             this.udp.setBroadcast(true);
+            devLog.note(`server listening ${address.address}:${address.port}`);
+        });
+
+        this.udp.bind(10001, this.ipblock.broadcast, () =>{
+            this.udp.setBroadcast(true);
+        }).on('error', (e) => {
+            if(e.code = 'EADDRNOTAVAIL'){
+                devLog.error('IP Adress invalid');
+                return 0;
+            }
+            devLog.error(e);
+        });
+
+        this.localudp.bind(10001, this.internalIp, () => {
+
         }).on('error', (e) => {
             if(e.code = 'EADDRNOTAVAIL'){
                 devLog.error('IP Adress invalid');
