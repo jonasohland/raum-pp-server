@@ -25,8 +25,6 @@ class Detect extends EventEmitter {
         this.cidr = this.internalIp.concat('/24');
         this.ipblock = new Netmask(this.cidr);
         
-        this.broadcastIP = this.ipblock.broadcast;
-
         this.udp = dgram.createSocket('udp4');
         this.answer = dgram.createSocket('udp4');
 
@@ -35,24 +33,15 @@ class Detect extends EventEmitter {
         this.messbridge = new EventEmitter();
 
         this.udp.on('message', (mess, address) => {
-            this.messbridge.emit('message', mess, address);
+            this.messbridge.emit('message', stringfromUdpBuffer(mess), address);
         });
         this.localudp.on('message', (mess, address) => {
-            this.messbridge.emit('message', mess, address);
+            this.messbridge.emit('message', stringfromUdpBuffer(mess), address);
         })
         
 
         //message handler
-        this.messbridge.on('message', (message, rinfo) =>{
-
-
-            let numbers = [];
-            for(const b of message){
-                numbers.push(b);
-            }
-
-            
-            var str = String.fromCharCode(...numbers);
+        this.messbridge.on('message', (str, rinfo) =>{
 
             devLog.info(`received Message: \'${str}\'`);
             devLog.info('from ip: ' + rinfo.address);
@@ -105,6 +94,11 @@ class Detect extends EventEmitter {
                 });
                 //answer 
 
+            } else if(str = 'rec') {
+                if(this.devices.hasOwnProperty(rinfo.address)){
+                    this.emit('recording', this.devices[rinfo.address]);
+                    log.note(`${this.devices[rinfo.address].name} started recording`);
+                }
             }
 
         });
@@ -159,6 +153,13 @@ function isIP(ipaddress) {
 
 module.exports = Detect;
 
+function stringfromUdpBuffer(buf){
+    let numbers = [];
+    for(const b of buf){
+        numbers.push(b);
+    }
+    return String.fromCharCode(...numbers);
+}
 
 class RaumPPdevice extends EventEmitter {
     constructor(ip, name){
