@@ -43,9 +43,8 @@ class Detect extends EventEmitter {
         //message handler
         this.messbridge.on('message', (str, rinfo) =>{
 
-            devLog.info(`received Message: \'${str}\'`);
-            devLog.info('from ip: ' + rinfo.address);
-            devLog.info('from port: ' + rinfo.port);
+            devLog.silly(`received Message: \'${str}\' from: ${rinfo.address} ond Port: ${rinfo.address} Device:`);
+            if (this.devices.hasOwnProperty(rinfo.address)) devLog.silly(this.devices[rinfo.address].name);
 
             if(str.slice(0,8) === 'discover'){
                 
