@@ -16,8 +16,4 @@ const dt = new Detect({
 });
 
 const max = new Max();
-
 const bridge = new EventBridge(dt, max);
-
-
-

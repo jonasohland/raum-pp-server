@@ -157,13 +157,15 @@ class Detect extends EventEmitter {
             let raw = stringfromUdpBuffer(packet);
             let str = raw.slice(5);
             let targetDevice = this.deviceFromMessage(str);
-            log.silly(targetDevice.name);
-
-            str = str.slice(targetDevice.name.length);
+            if(targetDevice != undefined){
+                log.silly(targetDevice.name);
+                str = str.slice(targetDevice.name.length);
             
-            this.answer.send(Buffer.from('data' + str), 10011, targetDevice.ip, () => {
-                log.silly('packet sent to client');
-            })
+                this.answer.send(Buffer.from('data' + str), 10011, targetDevice.ip, () => {
+                    log.silly('packet sent to client');
+                });
+            }
+            
         });
 
 
@@ -178,7 +180,9 @@ class Detect extends EventEmitter {
         Object.keys(this.devices).forEach((deviceId)=> {
             if(message.indexOf(this.devices[deviceId].name) == 0){
                 deviceOut = this.devices[deviceId];
+                
             }
+            else deviceOut = undefined;
         });
         return deviceOut;
     }
