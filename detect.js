@@ -19,10 +19,11 @@ class Detect extends EventEmitter {
     constructor(opts){
         super();
 
-        this.devices = {}
-        this.internalIp = internalIPFinder.v4.sync();
+        this.devices = {};
 
-        this.cidr = this.internalIp.concat('/24');
+        this.internalIP = internalIPFinder.v4.sync();
+
+        this.cidr = this.internalIP.concat('/24');
         this.ipblock = new Netmask(this.cidr);
         
         this.udp = dgram.createSocket('udp4');
@@ -124,7 +125,7 @@ class Detect extends EventEmitter {
             devLog.error(e);
         });
 
-        this.localudp.bind(10001, this.internalIp, () => {
+        this.localudp.bind(10001, this.internalIP, () => {
 
         }).on('error', (e) => {
             if(e.code = 'EADDRNOTAVAIL'){
