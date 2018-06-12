@@ -12,7 +12,7 @@ const internalIPFinder = require('internal-ip');
 const chalk = require('chalk');
 const Logger = require('./logger'); 
 const EventEmitter = require('events').EventEmitter;
-const devLog = new Logger();
+const log = new Logger();
 
 
 class Detect extends EventEmitter {
@@ -31,22 +31,26 @@ class Detect extends EventEmitter {
 
         this.localudp = dgram.createSocket('udp4');
 
+        // collect messages from local and broadcast socket
         this.messbridge = new EventEmitter();
-
         this.udp.on('message', (mess, address) => {
-            this.messbridge.emit('message', stringfromUdpBuffer(mess), address);
+            this.messbridge.emit('message', mess, address);
         });
         this.localudp.on('message', (mess, address) => {
-            this.messbridge.emit('message', stringfromUdpBuffer(mess), address);
+            this.messbridge.emit('message', mess, address);
         })
         
 
         //message handler
-        this.messbridge.on('message', (str, rinfo) =>{
+        //from clients <--
+        this.messbridge.on('message', (mess, rinfo) =>{
 
-            devLog.silly(`received Message: \'${str}\' from: ${rinfo.address} ond Port: ${rinfo.address} Device:`);
-            if (this.devices.hasOwnProperty(rinfo.address)) devLog.silly(this.devices[rinfo.address].name);
+            let str = stringfromUdpBuffer(mess);
 
+            log.silly(`received Message: \'${str}\' from: ${rinfo.address} ond Port: ${rinfo.address} Device:`);
+            if (this.devices.hasOwnProperty(rinfo.address)) log.silly(this.devices[rinfo.address].name);
+
+            // discovery message
             if(str.slice(0,8) === 'discover'){
                 
                 let deviceName = str.slice(9);
@@ -57,8 +61,9 @@ class Detect extends EventEmitter {
                     if(this.devices[rinfo.address].status === 'online'){
                         //changed name
                         if(deviceName !== this.devices[rinfo.address].name){
-                            devLog.warn(`${deviceName} changed Name from ${this.devices[rinfo.address].name}`);
+                            log.warn(`${deviceName} changed Name from ${this.devices[rinfo.address].name}`);
                             this.devices[rinfo.address].name = deviceName;
+                            // to max -->
                             this.emit('namechanged', this.devices[rinfo.address]);
                         }
                         //refresh tmt
@@ -68,14 +73,16 @@ class Detect extends EventEmitter {
                     } else if (this.devices[rinfo.address].status === 'tmt') {
                         //changed name
                         if(deviceName !== this.devices[rinfo.address].name){
-                            devLog.warn(`${deviceName} changed Name from ${this.devices[rinfo.address].name}`);
+                            log.warn(`${deviceName} changed Name from ${this.devices[rinfo.address].name}`);
                             this.devices[rinfo.address].name = deviceName;
+                            // to max -->
                             this.emit('namechanged', this.devices[rinfo.address]);
                         }
                         //refresh tmt and status
                         this.devices[rinfo.address].status = 'online';
                         this.devices[rinfo.address].tmt.refresh();
-                        devLog.note(`${deviceName} has reconnected`);
+                        log.note(`${deviceName} has reconnected`);
+                        // to max -->
                         this.emit('reconnected', this.devices[rinfo.address]);
                     }  
                
@@ -83,9 +90,10 @@ class Detect extends EventEmitter {
                     this.devices[rinfo.address] = new RaumPPdevice(rinfo.address, deviceName);
                     this.devices[rinfo.address].on('tmt', (args) => {
                         let mess = Buffer.from(`timeout ${args.name} ${args.ip}`)
+                        // to max -->
                         this.emit('tmt', this.devices[rinfo.address]);
                     });
-                    devLog.note(`new Device ${deviceName}, ip: ${rinfo.address}, connected`);
+                    log.note(`new Device ${deviceName}, ip: ${rinfo.address}, connected`);
                     this.emit('newDev', this.devices[rinfo.address]);
                 }
                 this.answer.send(Buffer.from('server'), 10011, rinfo.address, (err, bytes) => {
@@ -94,52 +102,85 @@ class Detect extends EventEmitter {
                 });
                 //answer 
 
-            } else if(str = 'rec') {
+            } else if(str === 'rec') {
                 if(this.devices.hasOwnProperty(rinfo.address)){
+                    // to max -->
                     this.emit('recording', this.devices[rinfo.address]);
                     log.note(`${this.devices[rinfo.address].name} started recording`);
+                }
+            } else if(str.slice(0, 4) === 'data') {
+                if(this.devices.hasOwnProperty(rinfo.address)){
+                    this.emit('data', mess, this.devices[rinfo.address]);
+                    log.silly('data sent to max-comm');
                 }
             }
 
         });
 
+
+        // binding n shit
         this.udp.on('listening', () => {
             const address = this.udp.address();
             this.udp.setBroadcast(true);
-            devLog.note(`server listening ${address.address}:${address.port}`);
+            log.note(`server listening ${address.address}:${address.port}`);
         });
 
         this.localudp.on('listening', () => {
             const address = this.localudp.address();
             this.udp.setBroadcast(true);
-            devLog.note(`server listening ${address.address}:${address.port}`);
+            log.note(`server listening ${address.address}:${address.port}`);
         });
 
         this.udp.bind(10001, this.ipblock.broadcast, () =>{
             this.udp.setBroadcast(true);
         }).on('error', (e) => {
             if(e.code = 'EADDRNOTAVAIL'){
-                devLog.error('IP Adress invalid');
+                log.error('IP Adress not available');
                 return 0;
             }
-            devLog.error(e);
+            log.error(e);
         });
 
         this.localudp.bind(10001, this.internalIP, () => {
 
         }).on('error', (e) => {
             if(e.code = 'EADDRNOTAVAIL'){
-                devLog.error('IP Adress invalid');
+                log.error('IP Adress not available');
                 return 0;
             }
-            devLog.error(e);
+            log.error(e);
         });
 
+
         this.maxComm = new EventEmitter();
+        this.maxComm.on('data', packet => {
+            let raw = stringfromUdpBuffer(packet);
+            let str = raw.slice(5);
+            let targetDevice = this.deviceFromMessage(str);
+            log.silly(targetDevice.name);
+
+            str = str.slice(targetDevice.name.length);
+            
+            this.answer.send(Buffer.from('data' + str), 10011, targetDevice.ip, () => {
+                log.silly('packet sent to client');
+            })
+        });
+
+
 
     }
     emitEvent(event, args){
         this.maxComm.emit(event, args);
+    }
+
+    deviceFromMessage(message){ 
+        let deviceOut = {};
+        Object.keys(this.devices).forEach((deviceId)=> {
+            if(message.indexOf(this.devices[deviceId].name) == 0){
+                deviceOut = this.devices[deviceId];
+            }
+        });
+        return deviceOut;
     }
 
 }
@@ -172,7 +213,7 @@ class RaumPPdevice extends EventEmitter {
 
         this.tmt = setTimeout(() => {
             this.status = 'tmt';
-            devLog.warn(`${this.name} timed out`);
+            log.warn(`${this.name} timed out`);
             this.emit('tmt', {
                 name: this.name,
                 ip: this.ip,
