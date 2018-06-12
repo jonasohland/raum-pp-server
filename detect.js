@@ -102,11 +102,22 @@ class Detect extends EventEmitter {
                 });
                 //answer 
 
-            } else if(str === 'rec') {
+            } else if(str === 'recording' || str === 'recorded' || str === 'encoded') {
                 if(this.devices.hasOwnProperty(rinfo.address)){
                     // to max -->
-                    this.emit('recording', this.devices[rinfo.address]);
-                    log.note(`${this.devices[rinfo.address].name} started recording`);
+                    this.emit(str, this.devices[rinfo.address]);
+                    let name = this.devices[rinfo.address].name;
+                    switch(str){
+                        case 'recording' : 
+                            log.note(`${name} started recording`);
+                            break;
+                        case 'recorded' : 
+                            log.note(`${name} finished recording, starts encoding`);
+                            break;
+                        case 'encoded' : 
+                            log.note(`${name} finished encoding, will upload`);
+                            break;
+                    } 
                 }
             } else if(str.slice(0, 4) === 'data') {
                 if(this.devices.hasOwnProperty(rinfo.address)){
@@ -160,7 +171,7 @@ class Detect extends EventEmitter {
             if(targetDevice != undefined){
                 log.silly(targetDevice.name);
                 str = str.slice(targetDevice.name.length);
-            
+                log.silly(`attempting to send to ${targetDevice.ip}`);
                 this.answer.send(Buffer.from('data' + str), 10011, targetDevice.ip, () => {
                     log.silly('packet sent to client');
                 });
@@ -176,13 +187,12 @@ class Detect extends EventEmitter {
     }
 
     deviceFromMessage(message){ 
-        let deviceOut = {};
+        let deviceOut;
         Object.keys(this.devices).forEach((deviceId)=> {
-            if(message.indexOf(this.devices[deviceId].name) == 0){
+
+            if(message.indexOf(this.devices[deviceId].name) === 0){
                 deviceOut = this.devices[deviceId];
-                
             }
-            else deviceOut = undefined;
         });
         return deviceOut;
     }

@@ -2,13 +2,15 @@ const Logger = require('./logger');
 const Detect = require('./detect');
 const Max = require('./maxComm');
 const EventBridge = require('./event-bridge');
+const express = require('./express-server');
 const EventEmitter = require('events').EventEmitter;
 
 const listen_ip = process.argv[2];
 
-global.consoleLevel = 'info';
+global.consoleLevel = 'note';
 const log = new Logger({
     logFilename: 'dings.log',
+    level: 'error',
 });
 
 const dt = new Detect({
@@ -17,3 +19,5 @@ const dt = new Detect({
 
 const max = new Max();
 const bridge = new EventBridge(dt, max);
+
+express();
