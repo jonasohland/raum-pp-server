@@ -102,21 +102,20 @@ class Detect extends EventEmitter {
                 });
                 //answer 
 
-            } else if(str === 'recording' || str === 'recorded' || str === 'encoded') {
+            } else if(str === 'recorded' || str === 'encoded' || str === 'uploaded') {
                 if(this.devices.hasOwnProperty(rinfo.address)){
                     // to max -->
                     this.emit(str, this.devices[rinfo.address]);
                     let name = this.devices[rinfo.address].name;
                     switch(str){
-                        case 'recording' : 
-                            log.note(`${name} started recording`);
-                            break;
                         case 'recorded' : 
                             log.note(`${name} finished recording, starts encoding`);
                             break;
                         case 'encoded' : 
                             log.note(`${name} finished encoding, will upload`);
                             break;
+                        case 'uploaded' :
+                            log.note(`${name} finished uploading`);
                     } 
                 }
             } else if(str.slice(0, 4) === 'data') {
