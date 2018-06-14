@@ -55,7 +55,9 @@ function expressBuild(dt, max) {
 
     app.get('/get', (req, res) => {
         log.note('served file');
-        res.sendFile(getnewfile());
+        let newfile = getnewfile();
+        log.note(newfile);
+        res.sendFile(newfile);
 
     });
 }
@@ -66,7 +68,7 @@ function getnewfile(){
 
     let indexstring = fs.readFileSync(filePath + '/index.json', 'utf8');
     let index = JSON.parse(indexstring);
-    let dist = prob.zipf(2, (index.fileArray.length > 0) ? index.fileArray.length : 1);
+    let dist = prob.zipf(1, (index.fileArray.length > 0) ? index.fileArray.length : 1);
     let n = dist();
     log.note(n);
     log.note(index.fileArray[n-1]);

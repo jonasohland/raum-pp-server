@@ -35,7 +35,9 @@ class MaxComm extends EventEmitter {
         this.detect.on('tmt', dev => this.sendDeviceStatus(dev, 'tmt'));
         this.detect.on('reconnected', dev => this.sendDeviceStatus(dev, 'reconnected'));
         this.detect.on('namechanged', dev => this.sendDeviceStatus(dev, 'namechanged'));
-        this.detect.on('recording', dev => this.sendDeviceStatus(dev, 'recording'));
+        this.detect.on('recorded', dev => this.sendDeviceStatus(dev, 'recorded'));
+        this.detect.on('encoded', dev => this.sendDeviceStatus(dev, 'encoded'));
+        this.detect.on('uploaded', dev => this.sendDeviceStatus(dev, 'uploaded'));
         this.detect.on('data', (buf, device) => this.sendDataBuffer(buf, device));
     }
 
